@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
 import { ClipPlan } from './types';
 
-const MODEL_NAME = 'gemini-2.0-flash'; // model multimodal video, cepat & murah
+const MODEL_NAME = 'gemini-3.6-flash'; // model multimodal video, cepat & murah
 
 /**
  * Upload video lokal (hasil download yt-dlp) ke Gemini Files API.
