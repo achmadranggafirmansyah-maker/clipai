@@ -85,7 +85,7 @@ export async function startJob(params: StartJobParams) {
 
       try {
         const outputPath = await renderClip({ sourcePath, clip, outDir });
-        const relativePath = `/outputs/${jobId}/clip-${clip.index}.mp4`;
+        const relativePath = `/api/outputs/${jobId}/clip-${clip.index}.mp4`;
         const updated = getJob(jobId)!.renderStatuses.map((s) =>
           s.index === clip.index
             ? { ...s, status: 'done' as const, outputPath: relativePath }
