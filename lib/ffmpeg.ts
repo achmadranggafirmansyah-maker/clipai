@@ -20,13 +20,6 @@ function toBetweenExpr(moments: { start: number; end: number }[]): string {
     .join('+');
 }
 
-/**
- * Style #1: Blur Background.
- * - Layer utama: blur penuh 720x1280 (background).
- * - Layer overlay: video asli di-zoom supaya lebih fokus ke orang, ditumpuk di tengah.
- * - Saat ada momen splitScreenMoments (video podcast 2 kamera), background blur
- *   "hilang" karena ditutup penuh oleh layer split-screen (kiri/kanan jadi atas/bawah).
- */
 function buildFilterComplex(splitMoments: { start: number; end: number }[]) {
   const hasSplit = splitMoments.length > 0;
   const enableExpr = toBetweenExpr(splitMoments);
@@ -35,12 +28,10 @@ function buildFilterComplex(splitMoments: { start: number; end: number }[]) {
 
   parts.push(`[0:v]setpts=PTS-STARTPTS,split=${hasSplit ? 3 : 2}[bgin][fgin]${hasSplit ? '[spin]' : ''}`);
 
-  // Background: crop-fill + blur
   parts.push(
     `[bgin]scale=${OUT_W}:${OUT_H}:force_original_aspect_ratio=increase,crop=${OUT_W}:${OUT_H},boxblur=24:24[bg]`,
   );
 
-  // Foreground: zoom in supaya area kosong makin tidak terlihat, lalu overlay di tengah
   const zoomedW = Math.round(OUT_W * FG_ZOOM);
   parts.push(
     `[fgin]scale=${zoomedW}:-2,crop=${OUT_W}:min(ih\\,${OUT_H})[fg]`,
@@ -50,7 +41,6 @@ function buildFilterComplex(splitMoments: { start: number; end: number }[]) {
   let lastLabel = 'normal';
 
   if (hasSplit) {
-    // Pecah frame asli jadi kiri & kanan (dua orang), lalu tumpuk atas-bawah
     parts.push(`[spin]split=2[spinL0][spinR0]`);
     parts.push(
       `[spinL0]crop=iw/2:ih:0:0,scale=${OUT_W}:${Math.round(OUT_H / 2)}[spinL]`,
@@ -69,9 +59,10 @@ function buildFilterComplex(splitMoments: { start: number; end: number }[]) {
 }
 
 async function writeSrtFile(srtContent: string, outDir: string, index: number) {
-  const srtPath = path.join(outDir, `clip-${index}.srt`);
+  const srtFileName = `clip-${index}.srt`;
+  const srtPath = path.join(outDir, srtFileName);
   await fs.writeFile(srtPath, srtContent || '1\n00:00:00,000 --> 00:00:01,000\n \n', 'utf-8');
-  return srtPath;
+  return srtFileName; // sengaja return nama file doang (relatif), bukan path lengkap
 }
 
 interface RenderParams {
@@ -80,22 +71,17 @@ interface RenderParams {
   outDir: string;
 }
 
-/**
- * Render satu clip. HARUS dipanggil satu-satu (sequential) oleh caller,
- * jangan di-Promise.all-kan, sesuai aturan produk (tidak render paralel).
- */
 export async function renderClip({ sourcePath, clip, outDir }: RenderParams): Promise<string> {
   await fs.mkdir(outDir, { recursive: true });
 
   const duration = clip.endSeconds - clip.startSeconds;
-  const srtPath = await writeSrtFile(clip.transcriptSrt, outDir, clip.index);
+  const srtFileName = await writeSrtFile(clip.transcriptSrt, outDir, clip.index);
   const outputPath = path.join(outDir, `clip-${clip.index}.mp4`);
 
   const { filter, outputLabel } = buildFilterComplex(clip.splitScreenMoments);
 
-  // subtitle wajib selalu aktif (tombol auto caption permanen ON) -> selalu di-burn
-  const escapedSrt = srtPath.replace(/:/g, '\\:');
-  const fullFilter = `${filter};[${outputLabel}]subtitles='${escapedSrt}':force_style='FontName=Arial,FontSize=15,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Alignment=2,MarginV=90'[final]`;
+  // pakai nama file relatif (bukan path panjang) supaya ffmpeg nggak rewel baca subtitle-nya
+  const fullFilter = `${filter};[${outputLabel}]subtitles=${srtFileName}:force_style='FontName=Arial,FontSize=15,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Alignment=2,MarginV=90'[final]`;
 
   const args = [
     '-y',
@@ -114,7 +100,8 @@ export async function renderClip({ sourcePath, clip, outDir }: RenderParams): Pr
     outputPath,
   ];
 
-  await execFileAsync('ffmpeg', args, { maxBuffer: 1024 * 1024 * 50 });
+  // cwd di-set ke outDir supaya nama file relatif di atas ke-resolve dengan benar
+  await execFileAsync('ffmpeg', args, { cwd: outDir, maxBuffer: 1024 * 1024 * 50 });
 
   return outputPath;
 }
