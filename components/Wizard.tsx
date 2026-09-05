@@ -386,7 +386,7 @@ function ResultsList({
             </div>
 
             {rs?.status === 'done' && rs.outputPath && (
-              <a className="btn" href={'${rs.outputPath}?download=1'} download>
+              <a className="btn" href={`${rs.outputPath}?download=1`} download>
                 ⬇ Download Clip Ini
               </a>
             )}
