@@ -248,9 +248,12 @@ input:focus { outline: 2px solid var(--primary); }
 
 .clip-card video {
   width: 100%;
+  max-width: 340px;
+  aspect-ratio: 9 / 16;
+  display: block;
+  margin: 0 auto 10px;
   border-radius: 10px;
   background: black;
-  margin-bottom: 10px;
 }
 
 .caption-box {
