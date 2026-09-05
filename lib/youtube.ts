@@ -11,13 +11,30 @@ const MAX_DURATION_SECONDS = 25 * 60; // batas 25 menit sesuai aturan produk
  * Ambil metadata video (judul, thumbnail, durasi) tanpa mendownload filenya.
  * Dipakai untuk preview thumbnail di step 2 sebelum user lanjut proses.
  */
-export async function getVideoInfo(youtubeUrl: string): Promise<VideoInfo> {
-  const { stdout } = await execFileAsync('yt-dlp', [
-    '--dump-single-json',
-    '--no-warnings',
-    '--no-playlist',
-    youtubeUrl,
-  ]);
+export async function downloadVideo(
+  youtubeUrl: string,
+  outDir: string,
+): Promise<string> {
+  const outPath = path.join(outDir, 'source.mp4');
+
+  await execFileAsync(
+    'yt-dlp',
+    [
+      '-f',
+      'bestvideo[height<=720]+bestaudio/best[height<=720]',
+      '--merge-output-format',
+      'mp4',
+      '--no-playlist',
+      '--extractor-args', 'youtube:player_client=android,web',
+      '-o',
+      outPath,
+      youtubeUrl,
+    ],
+    { maxBuffer: 1024 * 1024 * 50 },
+  );
+
+  return outPath;
+}
 
   const data = JSON.parse(stdout);
   const durationSeconds = Math.round(data.duration ?? 0);
