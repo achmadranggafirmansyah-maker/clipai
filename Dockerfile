@@ -15,7 +15,7 @@ RUN pip3 install --no-cache-dir --break-system-packages yt-dlp
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 COPY . .
 RUN npm run build
