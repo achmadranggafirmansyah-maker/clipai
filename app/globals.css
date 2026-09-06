@@ -304,7 +304,6 @@ input:focus { outline: 2px solid var(--primary); }
   aspect-ratio: 9 / 16;
   background-size: cover;
   background-position: center;
-  transform: translate(-50%, -50%);
   border: 2px solid rgba(255, 255, 255, 0.25);
 }
 
