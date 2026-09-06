@@ -18,8 +18,11 @@ export async function POST(req: NextRequest) {
         : `Durasi video ${Math.round(info.durationSeconds / 60)} menit melebihi batas maksimal 25 menit.`,
     });
   } catch (e: any) {
+    console.error('video-info gagal:', e.message);
     return NextResponse.json(
-      { error: 'Gagal mengambil info video. Pastikan link benar & video bisa diakses.' },
+      {
+        error: `Gagal mengambil info video. Pastikan link benar & video bisa diakses.\n\nDetail teknis: ${e.message}`,
+      },
       { status: 400 },
     );
   }
