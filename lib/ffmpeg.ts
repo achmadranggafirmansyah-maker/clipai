@@ -9,9 +9,20 @@ const execFileAsync = promisify(execFile);
 // Kanvas output portrait, di-cap di 720p (720x1280) sesuai aturan produk.
 const OUT_W = 720;
 const OUT_H = 1280;
-// Seberapa banyak layer foreground di-zoom supaya area kosong di kiri-kanan
-// video asli (yang biasanya 16:9) makin tidak kelihatan & fokus ke orangnya.
-const FG_ZOOM = 1.4;
+
+export interface StyleOptions {
+  blurIntensity: number; // 0-100, 0 = background nggak diblur sama sekali
+  overlayPosX: number; // -100..100, 0 = tengah
+  overlayPosY: number; // -100..100, 0 = tengah
+  overlayZoom: number; // persen, mis. 140 = 1.4x
+}
+
+export const DEFAULT_STYLE: StyleOptions = {
+  blurIntensity: 60,
+  overlayPosX: 0,
+  overlayPosY: 0,
+  overlayZoom: 140,
+};
 
 function toBetweenExpr(moments: { start: number; end: number }[]): string {
   if (!moments.length) return '0';
@@ -20,7 +31,10 @@ function toBetweenExpr(moments: { start: number; end: number }[]): string {
     .join('+');
 }
 
-function buildFilterComplex(splitMoments: { start: number; end: number }[]) {
+function buildFilterComplex(
+  splitMoments: { start: number; end: number }[],
+  style: StyleOptions,
+) {
   const hasSplit = splitMoments.length > 0;
   const enableExpr = toBetweenExpr(splitMoments);
 
@@ -28,15 +42,21 @@ function buildFilterComplex(splitMoments: { start: number; end: number }[]) {
 
   parts.push(`[0:v]setpts=PTS-STARTPTS,split=${hasSplit ? 3 : 2}[bgin][fgin]${hasSplit ? '[spin]' : ''}`);
 
-  parts.push(
-    `[bgin]scale=${OUT_W}:${OUT_H}:force_original_aspect_ratio=increase,crop=${OUT_W}:${OUT_H},boxblur=24:24[bg]`,
-  );
+  // Background: full-bleed crop 9:16. Blur cuma dipasang kalau intensity > 0,
+  // jadi kalau user set 0, background-nya beneran tajam tanpa filter blur sama sekali.
+  const blurRadius = Math.round((style.blurIntensity / 100) * 40);
+  const bgBase = `[bgin]scale=${OUT_W}:${OUT_H}:force_original_aspect_ratio=increase,crop=${OUT_W}:${OUT_H}`;
+  parts.push(blurRadius > 0 ? `${bgBase},boxblur=${blurRadius}:${blurRadius}[bg]` : `${bgBase}[bg]`);
 
-  const zoomedW = Math.round(OUT_W * FG_ZOOM);
-  parts.push(
-    `[fgin]scale=${zoomedW}:-2,crop=${OUT_W}:min(ih\\,${OUT_H})[fg]`,
-  );
-  parts.push(`[bg][fg]overlay=(W-w)/2:(H-h)/2[normal]`);
+  // Foreground: di-zoom sesuai overlayZoom, lalu digeser sesuai overlayPosX/Y.
+  const zoomedW = Math.round(OUT_W * (style.overlayZoom / 100));
+  parts.push(`[fgin]scale=${zoomedW}:-2,crop=${OUT_W}:min(ih\\,${OUT_H})[fg]`);
+
+  const fx = (style.overlayPosX / 100).toFixed(3);
+  const fy = (style.overlayPosY / 100).toFixed(3);
+  const overlayX = `(W-w)/2*(1+(${fx}))`;
+  const overlayY = `(H-h)/2*(1+(${fy}))`;
+  parts.push(`[bg][fg]overlay=${overlayX}:${overlayY}[normal]`);
 
   let lastLabel = 'normal';
 
@@ -58,38 +78,28 @@ function buildFilterComplex(splitMoments: { start: number; end: number }[]) {
   return { filter: parts.join(';'), outputLabel: lastLabel };
 }
 
-async function writeSrtFile(srtContent: string, outDir: string, index: number) {
-  const srtFileName = `clip-${index}.srt`;
-  const srtPath = path.join(outDir, srtFileName);
-  await fs.writeFile(srtPath, srtContent || '1\n00:00:00,000 --> 00:00:01,000\n \n', 'utf-8');
-  return srtFileName; // sengaja return nama file doang (relatif), bukan path lengkap
-}
-
 interface RenderParams {
   sourcePath: string;
   clip: ClipPlan;
   outDir: string;
+  style: StyleOptions;
 }
 
-export async function renderClip({ sourcePath, clip, outDir }: RenderParams): Promise<string> {
+export async function renderClip({ sourcePath, clip, outDir, style }: RenderParams): Promise<string> {
   await fs.mkdir(outDir, { recursive: true });
 
   const duration = clip.endSeconds - clip.startSeconds;
-  const srtFileName = await writeSrtFile(clip.transcriptSrt, outDir, clip.index);
   const outputPath = path.join(outDir, `clip-${clip.index}.mp4`);
 
-  const { filter, outputLabel } = buildFilterComplex(clip.splitScreenMoments);
-
-  // pakai nama file relatif (bukan path panjang) supaya ffmpeg nggak rewel baca subtitle-nya
-  const fullFilter = `${filter};[${outputLabel}]subtitles=${srtFileName}:force_style='FontName=Arial,FontSize=15,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Alignment=2,MarginV=90'[final]`;
+  const { filter, outputLabel } = buildFilterComplex(clip.splitScreenMoments, style);
 
   const args = [
     '-y',
     '-ss', String(clip.startSeconds),
     '-to', String(clip.endSeconds),
     '-i', sourcePath,
-    '-filter_complex', fullFilter,
-    '-map', '[final]',
+    '-filter_complex', filter,
+    '-map', `[${outputLabel}]`,
     '-map', '0:a?',
     '-t', String(duration),
     '-c:v', 'libx264',
@@ -100,7 +110,6 @@ export async function renderClip({ sourcePath, clip, outDir }: RenderParams): Pr
     outputPath,
   ];
 
-  // cwd di-set ke outDir supaya nama file relatif di atas ke-resolve dengan benar
   await execFileAsync('ffmpeg', args, { cwd: outDir, maxBuffer: 1024 * 1024 * 50 });
 
   return outputPath;
