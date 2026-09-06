@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-type StepKey = 'apiKey' | 'youtube' | 'brief' | 'style' | 'caption' | 'clipCount' | 'process' | 'results';
+type StepKey = 'apiKey' | 'youtube' | 'brief' | 'style' | 'overlay' | 'clipCount' | 'process' | 'results';
 
-const STEP_ORDER: StepKey[] = ['apiKey', 'youtube', 'brief', 'style', 'caption', 'clipCount', 'process', 'results'];
+const STEP_ORDER: StepKey[] = ['apiKey', 'youtube', 'brief', 'style', 'overlay', 'clipCount', 'process', 'results'];
 
 interface VideoInfo {
   title: string;
@@ -40,6 +40,67 @@ interface JobState {
   renderStatuses: RenderStatus[];
 }
 
+function RulerSlider({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="ruler-row">
+      <div className="ruler-label">{label}</div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="ruler-input"
+      />
+      <div className="ruler-value">{value}</div>
+    </div>
+  );
+}
+
+function LivePreviewFrame({
+  thumbnail,
+  blurIntensity,
+  posX,
+  posY,
+  zoom,
+}: {
+  thumbnail: string;
+  blurIntensity: number;
+  posX: number;
+  posY: number;
+  zoom: number;
+}) {
+  const blurPx = Math.round((blurIntensity / 100) * 18);
+  return (
+    <div className="preview-frame">
+      <div
+        className="preview-frame-bg"
+        style={{ backgroundImage: `url(${thumbnail})`, filter: `blur(${blurPx}px)` }}
+      />
+      <div
+        className="preview-frame-fg"
+        style={{
+          width: `${zoom}%`,
+          transform: `translate(${posX}%, ${posY}%)`,
+          backgroundImage: `url(${thumbnail})`,
+        }}
+      />
+    </div>
+  );
+}
+
 export default function Wizard() {
   const [step, setStep] = useState<StepKey>('apiKey');
 
@@ -58,10 +119,19 @@ export default function Wizard() {
   // step 3
   const [briefUrl, setBriefUrl] = useState('');
 
-  // step 5 clip count
+  // step 4: background blur
+  const [blurIntensity, setBlurIntensity] = useState(60);
+
+  // step 5: posisi & zoom overlay
+  const [overlayPosX, setOverlayPosX] = useState(0);
+  const [overlayPosY, setOverlayPosY] = useState(0);
+  const [overlayZoom, setOverlayZoom] = useState(140);
+  const [overlayTab, setOverlayTab] = useState<'posisi' | 'zoom'>('posisi');
+
+  // step 6 clip count
   const [clipCount, setClipCount] = useState(6);
 
-  // step 6/7 job
+  // step 7/8 job
   const [jobId, setJobId] = useState<string | null>(null);
   const [job, setJob] = useState<JobState | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
@@ -131,7 +201,16 @@ export default function Wizard() {
     const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, youtubeUrl, briefUrl, clipCount }),
+      body: JSON.stringify({
+        apiKey,
+        youtubeUrl,
+        briefUrl,
+        clipCount,
+        blurIntensity,
+        overlayPosX,
+        overlayPosY,
+        overlayZoom,
+      }),
     });
     const data = await res.json();
     if (data.jobId) {
@@ -247,37 +326,74 @@ export default function Wizard() {
 
       {step === 'style' && (
         <div className="card">
-          <h2>4. Style Clipping Video</h2>
-          <div className="style-card">
-            <h3>✓ Blur Background (aktif)</h3>
-            <p>
-              Video di-crop penuh 9:16 dengan latar blur, layer utama di-zoom fokus ke orang. Kalau video
-              podcast 2 orang & kamera menampilkan keduanya, otomatis berubah jadi split-screen (atas-bawah)
-              dan blur background hilang sementara.
-            </p>
-          </div>
-          <div className="pill-group" style={{ marginTop: 12 }}>
-            <span className="pill" style={{ opacity: 0.4 }}>
-              Style lain segera hadir
-            </span>
-          </div>
-          <button className="btn" style={{ marginTop: 14 }} onClick={() => setStep('caption')}>
+          <h2>4. Blur Background</h2>
+          <p className="hint">
+            Video di-crop penuh 9:16 dengan latar blur. Geser slider di bawah untuk atur seberapa tebal
+            blur-nya — paling kiri berarti background tetap tajam, tanpa blur sama sekali.
+          </p>
+          <LivePreviewFrame
+            thumbnail={videoInfo?.thumbnail || ''}
+            blurIntensity={blurIntensity}
+            posX={0}
+            posY={0}
+            zoom={140}
+          />
+          <RulerSlider label="Blur" value={blurIntensity} min={0} max={100} onChange={setBlurIntensity} />
+          <button className="btn" style={{ marginTop: 14 }} onClick={() => setStep('overlay')}>
             Lanjut →
           </button>
         </div>
       )}
 
-      {step === 'caption' && (
+      {step === 'overlay' && (
         <div className="card">
-          <h2>5. Auto Caption</h2>
-          <div className="toggle-row">
-            <div>
-              <div className="toggle-label">Subtitle otomatis</div>
-              <div className="toggle-sub">Selalu aktif — tidak bisa dimatikan, supaya semua klip tetap ramah tonton tanpa suara.</div>
+          <h2>5. Posisi & Zoom Video Utama</h2>
+          <p className="hint">
+            Blur background sudah dikunci di step sebelumnya ({blurIntensity}%). Sekarang atur posisi &
+            besar video utamanya di atas background itu, kayak di CapCut.
+          </p>
+          <LivePreviewFrame
+            thumbnail={videoInfo?.thumbnail || ''}
+            blurIntensity={blurIntensity}
+            posX={overlayPosX}
+            posY={overlayPosY}
+            zoom={overlayZoom}
+          />
+          <div className="tab-row">
+            <div
+              className={`tab ${overlayTab === 'posisi' ? 'active' : ''}`}
+              onClick={() => setOverlayTab('posisi')}
+            >
+              Posisi
             </div>
-            <div className="switch" />
+            <div className={`tab ${overlayTab === 'zoom' ? 'active' : ''}`} onClick={() => setOverlayTab('zoom')}>
+              Zoom
+            </div>
           </div>
-          <button className="btn" style={{ marginTop: 14 }} onClick={() => setStep('clipCount')}>
+
+          {overlayTab === 'posisi' && (
+            <>
+              <RulerSlider label="Sumbu X" value={overlayPosX} min={-100} max={100} onChange={setOverlayPosX} />
+              <RulerSlider label="Sumbu Y" value={overlayPosY} min={-100} max={100} onChange={setOverlayPosY} />
+            </>
+          )}
+          {overlayTab === 'zoom' && (
+            <RulerSlider label="Zoom" value={overlayZoom} min={100} max={250} onChange={setOverlayZoom} />
+          )}
+
+          <div className="overlay-actions">
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                setOverlayPosX(0);
+                setOverlayPosY(0);
+                setOverlayZoom(140);
+              }}
+            >
+              ↺ Reset
+            </button>
+          </div>
+          <button className="btn" style={{ marginTop: 10 }} onClick={() => setStep('clipCount')}>
             Lanjut →
           </button>
         </div>
