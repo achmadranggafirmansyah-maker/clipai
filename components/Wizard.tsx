@@ -93,7 +93,7 @@ function LivePreviewFrame({
         className="preview-frame-fg"
         style={{
           width: `${zoom}%`,
-          transform: `translate(${posX}%, ${posY}%)`,
+          transform: `translate(calc(-50% + ${posX}%), calc(-50% + ${posY}%))`,
           backgroundImage: `url(${thumbnail})`,
         }}
       />
