@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import { getVideoInfo, isDurationAllowed, downloadVideo } from './youtube';
 import { fetchBriefText } from './brief';
 import { analyzeVideoForClips } from './gemini';
-import { renderClip } from './ffmpeg';
+import { renderClip, StyleOptions } from './ffmpeg';
 import { getJob, updateJob } from './jobs';
 
 interface StartJobParams {
@@ -13,13 +13,14 @@ interface StartJobParams {
   briefUrl: string;
   clipCount: number; // 5-8
   maxClipSeconds: number; // 60
+  style: StyleOptions;
 }
 
 const TMP_ROOT = path.join(process.cwd(), 'tmp');
 const OUTPUT_ROOT = path.join(process.cwd(), 'public', 'outputs');
 
 export async function startJob(params: StartJobParams) {
-  const { jobId, apiKey, youtubeUrl, briefUrl, clipCount, maxClipSeconds } = params;
+  const { jobId, apiKey, youtubeUrl, briefUrl, clipCount, maxClipSeconds, style } = params;
   const workDir = path.join(TMP_ROOT, jobId);
   const outDir = path.join(OUTPUT_ROOT, jobId);
 
@@ -84,7 +85,7 @@ export async function startJob(params: StartJobParams) {
       });
 
       try {
-        const outputPath = await renderClip({ sourcePath, clip, outDir });
+        const outputPath = await renderClip({ sourcePath, clip, outDir, style });
         const relativePath = `/api/outputs/${jobId}/clip-${clip.index}.mp4`;
         const updated = getJob(jobId)!.renderStatuses.map((s) =>
           s.index === clip.index
