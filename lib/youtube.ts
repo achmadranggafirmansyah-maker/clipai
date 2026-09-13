@@ -11,6 +11,50 @@ const MAX_DURATION_SECONDS = 25 * 60; // batas 25 menit sesuai aturan produk
 // (YouTube suka gonta-ganti client mana yang lagi dibolehin/diblokir dari cloud
 // IP), otomatis lanjut coba client berikutnya sebelum benar-benar menyerah.
 const CLIENT_FALLBACKS = ['android', 'ios', 'tv_embedded', 'web'];
+const YOUTUBE_ID_REGEX = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([\w-]{11})/;
+
+function extractVideoId(url: string): string | null {
+  const match = url.match(YOUTUBE_ID_REGEX);
+  return match ? match[1] : null;
+}
+
+function parseIso8601Duration(iso: string): number {
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const [, h, m, s] = match;
+  return Number(h || 0) * 3600 + Number(m || 0) * 60 + Number(s || 0);
+}
+
+// Jalur utama: API resmi YouTube. Tidak pernah kena "sign in to confirm
+// you're not a bot" karena ini bukan scraping — resmi disediakan Google.
+async function getVideoInfoViaOfficialApi(videoId: string): Promise<VideoInfo | null> {
+  const apiKey = process.env.YOUTUBE_DATA_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,status&id=${videoId}&key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const item = data.items?.[0];
+    if (!item) return null;
+
+    const thumbs = item.snippet.thumbnails;
+    const thumbnail =
+      thumbs.maxres?.url || thumbs.standard?.url || thumbs.high?.url || thumbs.medium?.url || thumbs.default?.url;
+
+    return {
+      id: videoId,
+      title: item.snippet.title,
+      thumbnail,
+      durationSeconds: parseIso8601Duration(item.contentDetails.duration),
+      isPrivateOrUnlisted: item.status?.privacyStatus ? item.status.privacyStatus !== 'public' : false,
+    };
+  } catch {
+    return null; // biar jatuh ke fallback yt-dlp di bawah
+  }
+}
 
 async function runYtDlp(args: string[]): Promise<string> {
   const errors: string[] = [];
@@ -44,6 +88,15 @@ async function runYtDlp(args: string[]): Promise<string> {
  * Dipakai untuk preview thumbnail di step 2 sebelum user lanjut proses.
  */
 export async function getVideoInfo(youtubeUrl: string): Promise<VideoInfo> {
+  const videoId = extractVideoId(youtubeUrl);
+
+  if (videoId) {
+    const officialInfo = await getVideoInfoViaOfficialApi(videoId);
+    if (officialInfo) return officialInfo;
+  }
+
+  // Fallback: cuma dipakai kalau YOUTUBE_DATA_API_KEY belum di-set,
+  // atau videonya kasus khusus yang nggak kebaca lewat API resmi.
   const stdout = await runYtDlp([
     '--dump-single-json',
     '--no-warnings',
