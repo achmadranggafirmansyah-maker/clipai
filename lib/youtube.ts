@@ -1,11 +1,34 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { VideoInfo } from './types';
 
 const execFileAsync = promisify(execFile);
 
 const MAX_DURATION_SECONDS = 25 * 60; // batas 25 menit sesuai aturan produk
+
+// Kalau YouTube nge-block IP server (umum banget untuk IP cloud/datacenter),
+// yt-dlp butuh cookies dari akun yang sudah login supaya dianggap bukan bot.
+// Cookies disimpan di env var (base64) supaya tidak perlu commit file sensitif
+// ke repo, lalu ditulis ke disk sekali di awal proses.
+let cookiesFilePath: string | null | undefined; // undefined = belum dicek
+
+function getCookiesFilePath(): string | null {
+  if (cookiesFilePath !== undefined) return cookiesFilePath;
+
+  const b64 = process.env.YT_COOKIES_B64;
+  if (!b64) {
+    cookiesFilePath = null;
+    return null;
+  }
+
+  const filePath = path.join(os.tmpdir(), 'yt-cookies.txt');
+  fs.writeFileSync(filePath, Buffer.from(b64, 'base64'));
+  cookiesFilePath = filePath;
+  return filePath;
+}
 
 // Beberapa "penyamaran" client YouTube dicoba berurutan. Kalau satu keblokir
 // (YouTube suka gonta-ganti client mana yang lagi dibolehin/diblokir dari cloud
@@ -59,16 +82,17 @@ async function getVideoInfoViaOfficialApi(videoId: string): Promise<VideoInfo | 
 async function runYtDlp(args: string[]): Promise<string> {
   const errors: string[] = [];
 
-  // URL selalu jadi argumen terakhir di semua pemanggilan kita; sisipkan
-  // --extractor-args sebelum URL supaya urutannya aman buat yt-dlp.
   const url = args[args.length - 1];
   const baseArgs = args.slice(0, -1);
+
+  const cookies = getCookiesFilePath();
+  const cookieArgs = cookies ? ['--cookies', cookies] : [];
 
   for (const client of CLIENT_FALLBACKS) {
     try {
       const { stdout } = await execFileAsync(
         'yt-dlp',
-        [...baseArgs, '--extractor-args', `youtube:player_client=${client}`, url],
+        [...baseArgs, ...cookieArgs, '--extractor-args', `youtube:player_client=${client}`, url],
         { maxBuffer: 1024 * 1024 * 50 },
       );
       return stdout;
