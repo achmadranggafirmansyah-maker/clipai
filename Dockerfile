@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # yt-dlp dipasang lewat pip (selalu bisa di-update terpisah dari image ini)
-RUN pip3 install --no-cache-dir --break-system-packages yt-dlp
+RUN pip3 install --no-cache-dir --break-system-packages yt-dlp bgutil-ytdlp-pot-provider
 
 WORKDIR /app
 
@@ -25,4 +25,4 @@ RUN mkdir -p /app/tmp /app/public/outputs
 
 ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["sh", "-c", "pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp && npm run start"]
+CMD ["sh", "-c", "pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp bgutil-ytdlp-pot-provider && npm run start"]
