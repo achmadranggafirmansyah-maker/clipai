@@ -88,11 +88,14 @@ async function runYtDlp(args: string[]): Promise<string> {
   const cookies = getCookiesFilePath();
   const cookieArgs = cookies ? ['--cookies', cookies] : [];
 
+  const potUrl = process.env.POT_PROVIDER_URL;
+  const potArgs = potUrl ? ['--extractor-args', `youtubepot-bgutilhttp:base_url=${potUrl}`] : [];
+
   for (const client of CLIENT_FALLBACKS) {
     try {
       const { stdout } = await execFileAsync(
         'yt-dlp',
-        [...baseArgs, ...cookieArgs, '--extractor-args', `youtube:player_client=${client}`, url],
+        [...baseArgs, ...cookieArgs, ...potArgs, '--extractor-args', `youtube:player_client=${client}`, url],
         { maxBuffer: 1024 * 1024 * 50 },
       );
       return stdout;
