@@ -21,7 +21,7 @@ export const DEFAULT_STYLE: StyleOptions = {
   blurIntensity: 60,
   overlayPosX: 0,
   overlayPosY: 0,
-  overlayZoom: 140,
+  overlayZoom: 100,
 };
 
 function toBetweenExpr(moments: { start: number; end: number }[]): string {
@@ -48,9 +48,11 @@ function buildFilterComplex(
   const bgBase = `[bgin]scale=${OUT_W}:${OUT_H}:force_original_aspect_ratio=increase,crop=${OUT_W}:${OUT_H}`;
   parts.push(blurRadius > 0 ? `${bgBase},boxblur=${blurRadius}:${blurRadius}[bg]` : `${bgBase}[bg]`);
 
-  // Foreground: di-zoom sesuai overlayZoom, lalu digeser sesuai overlayPosX/Y.
+  // Foreground: di-zoom sesuai overlayZoom (tetap 16:9, tanpa distorsi), lalu
+  // digeser sesuai overlayPosX/Y. SENGAJA tidak di-crop ke OUT_W di sini:
+  // filter `overlay` di bawah otomatis memotong bagian yang keluar dari kanvas.
   const zoomedW = Math.round(OUT_W * (style.overlayZoom / 100));
-  parts.push(`[fgin]scale=${zoomedW}:-2,crop=${OUT_W}:min(ih\\,${OUT_H})[fg]`);
+  parts.push(`[fgin]scale=${zoomedW}:-2[fg]`);
 
   const fx = (style.overlayPosX / 100).toFixed(3);
   const fy = (style.overlayPosY / 100).toFixed(3);
