@@ -83,6 +83,12 @@ function LivePreviewFrame({
   zoom: number;
 }) {
   const blurPx = Math.round((blurIntensity / 100) * 18);
+
+  const fgWidthFrac = zoom / 100;
+  const fgHeightFrac = (fgWidthFrac * (9 / 16)) / (16 / 9);
+  const leftPct = ((1 - fgWidthFrac) / 2) * (1 + posX / 100) * 100;
+  const topPct = ((1 - fgHeightFrac) / 2) * (1 + posY / 100) * 100;
+
   return (
     <div className="preview-frame">
       <div
@@ -93,11 +99,20 @@ function LivePreviewFrame({
         className="preview-frame-fg"
         style={{
           width: `${zoom}%`,
-          transform: `translate(calc(-50% + ${posX}%), calc(-50% + ${posY}%))`,
+          left: `${leftPct}%`,
+          top: `${topPct}%`,
           backgroundImage: `url(${thumbnail})`,
         }}
       />
     </div>
+  );
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="btn-back" onClick={onClick}>
+      ← Kembali
+    </button>
   );
 }
 
@@ -125,7 +140,7 @@ export default function Wizard() {
   // step 5: posisi & zoom overlay
   const [overlayPosX, setOverlayPosX] = useState(0);
   const [overlayPosY, setOverlayPosY] = useState(0);
-  const [overlayZoom, setOverlayZoom] = useState(140);
+  const [overlayZoom, setOverlayZoom] = useState(100);
   const [overlayTab, setOverlayTab] = useState<'posisi' | 'zoom'>('posisi');
 
   // step 6 clip count
@@ -270,6 +285,7 @@ export default function Wizard() {
 
       {step === 'youtube' && (
         <div className="card">
+          <BackButton onClick={() => setStep('apiKey')} />
           <h2>2. Link Video YouTube</h2>
           <p className="hint">
             Maksimal durasi video 20-25 menit. Pastikan thumbnail di bawah sesuai supaya tidak salah video.
@@ -305,6 +321,7 @@ export default function Wizard() {
 
       {step === 'brief' && (
         <div className="card">
+          <BackButton onClick={() => setStep('youtube')} />
           <h2>3. Link Brief Campaign</h2>
           <p className="hint">
             AI akan membaca brief ini dengan seksama sebelum menentukan clip, supaya hasilnya sesuai aturan &
@@ -326,6 +343,7 @@ export default function Wizard() {
 
       {step === 'style' && (
         <div className="card">
+          <BackButton onClick={() => setStep('brief')} />
           <h2>4. Blur Background</h2>
           <p className="hint">
             Video di-crop penuh 9:16 dengan latar blur. Geser slider di bawah untuk atur seberapa tebal
@@ -347,6 +365,7 @@ export default function Wizard() {
 
       {step === 'overlay' && (
         <div className="card">
+          <BackButton onClick={() => setStep('style')} />
           <h2>5. Posisi & Zoom Video Utama</h2>
           <p className="hint">
             Blur background sudah dikunci di step sebelumnya ({blurIntensity}%). Sekarang atur posisi &
@@ -401,6 +420,7 @@ export default function Wizard() {
 
       {step === 'clipCount' && (
         <div className="card">
+          <BackButton onClick={() => setStep('overlay')} />
           <h2>6. Jumlah Clip</h2>
           <p className="hint">Maksimal durasi tiap clip 60 detik.</p>
           <div className="pill-group">
@@ -422,6 +442,7 @@ export default function Wizard() {
 
       {step === 'process' && (
         <div className="card progress-box">
+          <BackButton onClick={() => setStep('clipCount')} />
           <div className="spinner" />
           <p style={{ fontWeight: 600 }}>{job?.progressMessage || 'Memproses...'}</p>
           {job?.status === 'error' && <p className="msg-error">{job.error}</p>}
@@ -442,8 +463,8 @@ export default function Wizard() {
       )}
 
       {step === 'results' && job?.plan && (
-        <ResultsList plan={job.plan} renderStatuses={job.renderStatuses} />
-      )}
+  <ResultsList plan={job.plan} renderStatuses={job.renderStatuses} onBack={() => setStep('clipCount')} />
+)}
 
       {step === 'apiKey' && (
         <div className="card" id="tutorial-api-key">
@@ -464,13 +485,16 @@ export default function Wizard() {
 function ResultsList({
   plan,
   renderStatuses,
+  onBack,
 }: {
   plan: ClipPlan[];
   renderStatuses: RenderStatus[];
+  onBack: () => void;
 }) {
   return (
     <div>
       <div className="card">
+        <BackButton onClick={onBack} />
         <h2>🎉 Hasil Clip Kamu</h2>
         <p className="hint">Diurutkan dari yang paling berpotensi viral/FYP di TikTok.</p>
       </div>
