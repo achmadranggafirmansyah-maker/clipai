@@ -299,12 +299,11 @@ input:focus { outline: 2px solid var(--primary); }
 }
 .preview-frame-fg {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  aspect-ratio: 9 / 16;
+  aspect-ratio: 16 / 9;
   background-size: cover;
   background-position: center;
   border: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
 }
 
 .ruler-row {
@@ -374,6 +373,21 @@ input:focus { outline: 2px solid var(--primary); }
   color: #fff;
   border-bottom-color: var(--primary);
   font-weight: 600;
+}
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: #9aa4bc;
+  font-size: 13px;
+  padding: 0 0 12px;
+  margin: 0;
+  cursor: pointer;
+}
+.btn-back:hover {
+  color: #c9cfe3;
 }
 
 .overlay-actions {
