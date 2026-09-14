@@ -6,11 +6,6 @@ export interface VideoInfo {
   isPrivateOrUnlisted: boolean;
 }
 
-export interface SplitMoment {
-  start: number; // detik, relatif ke awal clip
-  end: number;
-}
-
 export interface ClipPlan {
   index: number;
   startSeconds: number; // relatif ke video asli
@@ -18,7 +13,6 @@ export interface ClipPlan {
   title: string;
   reasoning: string;
   viralScore: number; // 0-100, dipakai untuk urutan hasil
-  splitScreenMoments: SplitMoment[]; // relatif ke clip (start dari 0)
   transcriptSrt: string; // isi file .srt untuk clip ini
   recommendedCaption: string;
   mandatoryHashtags: string[]; // wajib dari brief campaign
