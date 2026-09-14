@@ -33,7 +33,7 @@ export async function startJob(params: StartJobParams) {
 
     if (!isDurationAllowed(videoInfo.durationSeconds)) {
       throw new Error(
-        `Durasi video (${Math.round(videoInfo.durationSeconds / 60)} menit) melebihi batas maksimal 25 menit.`,
+        `Durasi video (${Math.round(videoInfo.durationSeconds / 60)} menit) melebihi batas maksimal 60 menit.`,
       );
     }
     updateJob(jobId, { videoInfo });
