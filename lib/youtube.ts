@@ -7,7 +7,7 @@ import { VideoInfo } from './types';
 
 const execFileAsync = promisify(execFile);
 
-const MAX_DURATION_SECONDS = 25 * 60; // batas 25 menit sesuai aturan produk
+const MAX_DURATION_SECONDS = 60 * 60; // batas 60 menit sesuai aturan produk
 
 // Kalau YouTube nge-block IP server (umum banget untuk IP cloud/datacenter),
 // yt-dlp butuh cookies dari akun yang sudah login supaya dianggap bukan bot.
