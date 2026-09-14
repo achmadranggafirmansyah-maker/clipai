@@ -48,7 +48,6 @@ Balas HANYA dengan JSON valid (tanpa markdown, tanpa penjelasan tambahan) dengan
       "title": "judul singkat momen",
       "reasoning": "kenapa momen ini menarik/berpotensi viral, 1-2 kalimat",
       "viralScore": number (0-100),
-      "splitScreenMoments": [{"start": number, "end": number}],
       "transcriptSrt": "isi file .srt lengkap untuk rentang clip ini, timestamp mulai dari 00:00:00,000",
       "recommendedCaption": "caption siap upload dalam Bahasa Indonesia gaya santai",
       "mandatoryHashtags": ["#dariBrief"],
@@ -60,7 +59,6 @@ Balas HANYA dengan JSON valid (tanpa markdown, tanpa penjelasan tambahan) dengan
 Catatan penting:
 - "startSeconds"/"endSeconds" relatif terhadap video ASLI (detik ke berapa dari awal video panjang).
 - Setiap clip durasinya TIDAK BOLEH lebih dari ${''}MAX_CLIP_SECONDS detik.
-- "splitScreenMoments" hanya diisi kalau video ini podcast/obrolan 2 orang DAN kamera sempat menampilkan kedua orang sekaligus dalam rentang waktu clip tsb; start/end di sini relatif ke AWAL CLIP (0 = awal clip), bukan ke video asli.
 - "mandatoryHashtags" WAJIB diambil dari instruksi/hashtag yang disebutkan eksplisit di brief campaign. Kalau brief tidak menyebutkan hashtag wajib, kosongkan array-nya.
 - Urutkan array "clips" bebas, sistem yang akan mengurutkan ulang berdasarkan viralScore.
 `;
@@ -134,9 +132,6 @@ ${instruction}
     title: c.title ?? `Clip ${i + 1}`,
     reasoning: c.reasoning ?? '',
     viralScore: Math.max(0, Math.min(100, Math.round(c.viralScore ?? 0))),
-    splitScreenMoments: Array.isArray(c.splitScreenMoments)
-      ? c.splitScreenMoments
-      : [],
     transcriptSrt: c.transcriptSrt ?? '',
     recommendedCaption: c.recommendedCaption ?? '',
     mandatoryHashtags: Array.isArray(c.mandatoryHashtags)
