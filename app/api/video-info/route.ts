@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       durationAllowed: allowed,
       warning: allowed
         ? null
-        : `Durasi video ${Math.round(info.durationSeconds / 60)} menit melebihi batas maksimal 25 menit.`,
+        : `Durasi video ${Math.round(info.durationSeconds / 60)} menit melebihi batas maksimal 60 menit.`,
     });
   } catch (e: any) {
     console.error('video-info gagal:', e.message);
