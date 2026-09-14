@@ -106,5 +106,10 @@ export async function startJob(params: StartJobParams) {
     updateJob(jobId, { status: 'done', progressMessage: 'Semua clip selesai diproses!' });
   } catch (e: any) {
     updateJob(jobId, { status: 'error', error: e.message, progressMessage: 'Terjadi kesalahan.' });
+  } finally {
+    // Video source yang didownload (bisa ratusan MB-an di durasi 60 menit)
+    // sudah tidak dibutuhkan lagi setelah semua clip dirender. Dibersihkan
+    // di sini supaya disk server tidak numpuk seiring makin banyak job jalan.
+    await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
