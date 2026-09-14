@@ -288,7 +288,7 @@ export default function Wizard() {
           <BackButton onClick={() => setStep('apiKey')} />
           <h2>2. Link Video YouTube</h2>
           <p className="hint">
-            Maksimal durasi video 20-25 menit. Pastikan thumbnail di bawah sesuai supaya tidak salah video.
+            Maksimal durasi video 60 menit. Pastikan thumbnail di bawah sesuai supaya tidak salah video.
           </p>
           <label>URL Video YouTube</label>
           <input
