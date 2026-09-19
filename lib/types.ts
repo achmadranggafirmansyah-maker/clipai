@@ -6,6 +6,15 @@ export interface VideoInfo {
   isPrivateOrUnlisted: boolean;
 }
 
+export interface UploadInfo {
+  uploadId: string;
+  title: string;
+  thumbnail: string;
+  durationSeconds: number;
+  durationAllowed: boolean;
+  warning: string | null;
+}
+
 export interface ClipPlan {
   index: number;
   startSeconds: number; // relatif ke video asli
