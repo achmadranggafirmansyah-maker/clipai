@@ -137,5 +137,6 @@ export async function startJob(params: StartJobParams) {
     // sudah tidak dibutuhkan lagi setelah semua clip dirender. Dibersihkan
     // di sini supaya disk server tidak numpuk seiring makin banyak job jalan.
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    if (uploadDir) await fs.rm(uploadDir, { recursive: true, force: true }).catch(() => {});
   }
 }
