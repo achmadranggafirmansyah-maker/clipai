@@ -24,8 +24,6 @@ interface UploadInfo {
 }
 
 interface RenderStatus {
-
-interface RenderStatus {
   index: number;
   status: 'pending' | 'rendering' | 'done' | 'error';
   outputPath?: string;
