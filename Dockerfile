@@ -25,4 +25,4 @@ RUN mkdir -p /app/tmp /app/public/outputs
 
 ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["sh", "-c", "pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp bgutil-ytdlp-pot-provider && npm run start"]
+CMD ["sh", "-c", "pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp bgutil-ytdlp-pot-provider && node server.js"]
