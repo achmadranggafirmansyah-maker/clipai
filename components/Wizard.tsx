@@ -227,21 +227,50 @@ export default function Wizard() {
     }
   }
 
+  async function handleUploadVideo() {
+    if (!uploadFile) return;
+    setUploadLoading(true);
+    setUploadErr('');
+    setUploadInfo(null);
+    try {
+      const form = new FormData();
+      form.append('video', uploadFile);
+      const res = await fetch('/api/upload', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) {
+        setUploadErr(data.error || 'Gagal upload video.');
+      } else {
+        setUploadInfo(data);
+      }
+    } catch {
+      setUploadErr('Gagal menghubungi server.');
+    } finally {
+      setUploadLoading(false);
+    }
+  }
+
   async function handleStartProcess() {
     setStep('process');
+    const payload: any = {
+      apiKey,
+      briefUrl,
+      clipCount,
+      blurIntensity,
+      overlayPosX,
+      overlayPosY,
+      overlayZoom,
+    };
+    if (videoMode === 'upload' && uploadInfo) {
+      payload.uploadId = uploadInfo.uploadId;
+      payload.uploadTitle = uploadInfo.title;
+      payload.uploadDurationSeconds = uploadInfo.durationSeconds;
+    } else {
+      payload.youtubeUrl = youtubeUrl;
+    }
     const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        apiKey,
-        youtubeUrl,
-        briefUrl,
-        clipCount,
-        blurIntensity,
-        overlayPosX,
-        overlayPosY,
-        overlayZoom,
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (data.jobId) {
@@ -302,35 +331,100 @@ export default function Wizard() {
       {step === 'youtube' && (
         <div className="card">
           <BackButton onClick={() => setStep('apiKey')} />
-          <h2>2. Link Video YouTube</h2>
-          <p className="hint">
-            Maksimal durasi video 60 menit. Pastikan thumbnail di bawah sesuai supaya tidak salah video.
-          </p>
-          <label>URL Video YouTube</label>
-          <input
-            type="url"
-            placeholder="https://www.youtube.com/watch?v=..."
-            value={youtubeUrl}
-            onChange={(e) => setYoutubeUrl(e.target.value)}
-          />
-          <button className="btn" onClick={handleFetchVideoInfo} disabled={!youtubeUrl || videoLoading}>
-            {videoLoading ? 'Mengambil info video...' : 'Cek Video'}
-          </button>
-          {videoErr && <p className="msg-error">{videoErr}</p>}
-          {videoInfo && (
-            <div>
-              <img className="thumb-preview" src={videoInfo.thumbnail} alt="thumbnail" />
-              <p style={{ fontSize: 13, marginTop: 8 }}>{videoInfo.title}</p>
-              <p style={{ fontSize: 12.5, color: '#9aa4bc' }}>
-                Durasi: {Math.floor(videoInfo.durationSeconds / 60)} menit {videoInfo.durationSeconds % 60} detik
+          <h2>2. Video Sumber</h2>
+
+          <div className="tab-row">
+            <button
+              type="button"
+              className={videoMode === 'link' ? 'tab active' : 'tab'}
+              onClick={() => setVideoMode('link')}
+            >
+              Paste Link YouTube
+            </button>
+            <button
+              type="button"
+              className={videoMode === 'upload' ? 'tab active' : 'tab'}
+              onClick={() => setVideoMode('upload')}
+            >
+              Upload Video
+            </button>
+          </div>
+
+          {videoMode === 'link' && (
+            <>
+              <p className="hint">
+                Maksimal durasi video 60 menit. Pastikan thumbnail di bawah sesuai supaya tidak salah video.
               </p>
-              {!videoInfo.durationAllowed && <p className="msg-error">{videoInfo.warning}</p>}
-              {videoInfo.durationAllowed && (
-                <button className="btn" style={{ marginTop: 10 }} onClick={() => setStep('brief')}>
-                  Video Sudah Benar, Lanjut →
-                </button>
+              <label>URL Video YouTube</label>
+              <input
+                type="url"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+              />
+              <button className="btn" onClick={handleFetchVideoInfo} disabled={!youtubeUrl || videoLoading}>
+                {videoLoading ? 'Mengambil info video...' : 'Cek Video'}
+              </button>
+              {videoErr && <p className="msg-error">{videoErr}</p>}
+              {videoInfo && (
+                <div>
+                  <img className="thumb-preview" src={videoInfo.thumbnail} alt="thumbnail" />
+                  <p style={{ fontSize: 13, marginTop: 8 }}>{videoInfo.title}</p>
+                  <p style={{ fontSize: 12.5, color: '#9aa4bc' }}>
+                    Durasi: {Math.floor(videoInfo.durationSeconds / 60)} menit {videoInfo.durationSeconds % 60} detik
+                  </p>
+                  {!videoInfo.durationAllowed && <p className="msg-error">{videoInfo.warning}</p>}
+                  {videoInfo.durationAllowed && (
+                    <button className="btn" style={{ marginTop: 10 }} onClick={() => setStep('brief')}>
+                      Video Sudah Benar, Lanjut →
+                    </button>
+                  )}
+                </div>
               )}
-            </div>
+            </>
+          )}
+
+          {videoMode === 'upload' && (
+            <>
+              <p className="hint">
+                Upload langsung file video dari HP/laptop kamu — cocok kalau link YouTube lagi diblokir,
+                atau videonya belum diupload ke YouTube. Maksimal durasi 60 menit.
+              </p>
+              <label>File Video</label>
+              <input
+                type="file"
+                accept="video/*"
+                onChange={(e) => {
+                  setUploadFile(e.target.files?.[0] || null);
+                  setUploadInfo(null);
+                  setUploadErr('');
+                }}
+              />
+              <button className="btn" onClick={handleUploadVideo} disabled={!uploadFile || uploadLoading}>
+                {uploadLoading ? 'Mengupload & memproses...' : 'Upload Video'}
+              </button>
+              {uploadErr && <p className="msg-error">{uploadErr}</p>}
+              {uploadInfo && (
+                <div>
+                  <img className="thumb-preview" src={uploadInfo.thumbnail} alt="thumbnail" />
+                  <label style={{ marginTop: 10 }}>Judul Video</label>
+                  <input
+                    type="text"
+                    value={uploadInfo.title}
+                    onChange={(e) => setUploadInfo({ ...uploadInfo, title: e.target.value })}
+                  />
+                  <p style={{ fontSize: 12.5, color: '#9aa4bc', marginTop: 8 }}>
+                    Durasi: {Math.floor(uploadInfo.durationSeconds / 60)} menit {uploadInfo.durationSeconds % 60} detik
+                  </p>
+                  {!uploadInfo.durationAllowed && <p className="msg-error">{uploadInfo.warning}</p>}
+                  {uploadInfo.durationAllowed && (
+                    <button className="btn" style={{ marginTop: 10 }} onClick={() => setStep('brief')}>
+                      Video Sudah Benar, Lanjut →
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
