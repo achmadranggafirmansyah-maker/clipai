@@ -24,26 +24,48 @@ const TMP_ROOT = path.join(process.cwd(), 'tmp');
 const OUTPUT_ROOT = path.join(process.cwd(), 'public', 'outputs');
 
 export async function startJob(params: StartJobParams) {
-  const { jobId, apiKey, youtubeUrl, briefUrl, clipCount, maxClipSeconds, style } = params;
+  const { jobId, apiKey, source, briefUrl, clipCount, maxClipSeconds, style } = params;
   const workDir = path.join(TMP_ROOT, jobId);
   const outDir = path.join(OUTPUT_ROOT, jobId);
+  const uploadDir = source.type === 'upload' ? path.join(TMP_ROOT, 'uploads', source.uploadId) : null;
 
   try {
     await fs.mkdir(workDir, { recursive: true });
     await fs.mkdir(outDir, { recursive: true });
 
-    updateJob(jobId, { status: 'downloading', progressMessage: 'Mengambil info video...' });
-    const videoInfo = await getVideoInfo(youtubeUrl);
+    let videoInfo;
+    let sourcePath: string;
 
-    if (!isDurationAllowed(videoInfo.durationSeconds)) {
-      throw new Error(
-        `Durasi video (${Math.round(videoInfo.durationSeconds / 60)} menit) melebihi batas maksimal 60 menit.`,
-      );
+    if (source.type === 'youtube') {
+      updateJob(jobId, { status: 'downloading', progressMessage: 'Mengambil info video...' });
+      videoInfo = await getVideoInfo(source.youtubeUrl);
+
+      if (!isDurationAllowed(videoInfo.durationSeconds)) {
+        throw new Error(
+          `Durasi video (${Math.round(videoInfo.durationSeconds / 60)} menit) melebihi batas maksimal 60 menit.`,
+        );
+      }
+      updateJob(jobId, { videoInfo });
+
+      updateJob(jobId, { progressMessage: 'Mendownload video (mohon tunggu, tergantung durasi video)...' });
+      sourcePath = await downloadVideo(source.youtubeUrl, workDir);
+    } else {
+      // Video sudah ada di disk (diupload lewat /api/upload) — tidak perlu yt-dlp sama sekali.
+      videoInfo = {
+        id: source.uploadId,
+        title: source.title,
+        thumbnail: '',
+        durationSeconds: source.durationSeconds,
+        isPrivateOrUnlisted: false,
+      };
+      updateJob(jobId, {
+        videoInfo,
+        status: 'downloading',
+        progressMessage: 'Menyiapkan video yang sudah diupload...',
+      });
+      sourcePath = path.join(workDir, 'source.mp4');
+      await fs.rename(path.join(uploadDir!, 'source.mp4'), sourcePath);
     }
-    updateJob(jobId, { videoInfo });
-
-    updateJob(jobId, { progressMessage: 'Mendownload video (mohon tunggu, tergantung durasi video)...' });
-    const sourcePath = await downloadVideo(youtubeUrl, workDir);
 
     updateJob(jobId, { progressMessage: 'Membaca brief campaign...' });
     let briefText = '';
