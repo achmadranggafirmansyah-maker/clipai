@@ -14,6 +14,17 @@ interface VideoInfo {
   warning: string | null;
 }
 
+interface UploadInfo {
+  uploadId: string;
+  title: string;
+  thumbnail: string;
+  durationSeconds: number;
+  durationAllowed: boolean;
+  warning: string | null;
+}
+
+interface RenderStatus {
+
 interface RenderStatus {
   index: number;
   status: 'pending' | 'rendering' | 'done' | 'error';
