@@ -139,6 +139,11 @@ export default function Wizard() {
   // step 2
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
+  const [videoMode, setVideoMode] = useState<'link' | 'upload'>('link');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadInfo, setUploadInfo] = useState<UploadInfo | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadErr, setUploadErr] = useState('');
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoErr, setVideoErr] = useState('');
 
