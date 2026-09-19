@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
   startJob({
     jobId,
     apiKey,
-    youtubeUrl,
+    source,
     briefUrl: briefUrl || '',
     clipCount: count,
     maxClipSeconds: 60,
