@@ -6,10 +6,14 @@ import { analyzeVideoForClips } from './gemini';
 import { renderClip, StyleOptions } from './ffmpeg';
 import { getJob, updateJob } from './jobs';
 
+type VideoSource =
+  | { type: 'youtube'; youtubeUrl: string }
+  | { type: 'upload'; uploadId: string; title: string; durationSeconds: number };
+
 interface StartJobParams {
   jobId: string;
   apiKey: string;
-  youtubeUrl: string;
+  source: VideoSource;
   briefUrl: string;
   clipCount: number; // 5-8
   maxClipSeconds: number; // 60
