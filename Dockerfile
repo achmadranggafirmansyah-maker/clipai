@@ -15,7 +15,7 @@ RUN pip3 install --no-cache-dir --break-system-packages yt-dlp bgutil-ytdlp-pot-
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install
 
 COPY . .
 RUN npm run build
