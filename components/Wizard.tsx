@@ -234,14 +234,24 @@ export default function Wizard() {
       const form = new FormData();
       form.append('video', uploadFile);
       const res = await fetch('/api/upload', { method: 'POST', body: form });
-      const data = await res.json();
-      if (!res.ok) {
-        setUploadErr(data.error || 'Gagal upload video.');
+
+      let data: any = null;
+      let parseErr = '';
+      try {
+        data = await res.json();
+      } catch (e: any) {
+        parseErr = e?.message || 'response bukan JSON';
+      }
+
+      if (!data) {
+        setUploadErr(`[DEBUG] Server balas status ${res.status} ${res.statusText}, tapi gagal dibaca (${parseErr}).`);
+      } else if (!res.ok) {
+        setUploadErr(`[DEBUG status ${res.status}] ${data.error || 'Gagal upload video.'}`);
       } else {
         setUploadInfo(data);
       }
-    } catch {
-      setUploadErr('Gagal menghubungi server.');
+    } catch (e: any) {
+      setUploadErr(`[DEBUG] fetch gagal total: ${e?.message || e}`);
     } finally {
       setUploadLoading(false);
     }
