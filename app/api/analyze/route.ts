@@ -10,10 +10,39 @@ function clamp(n: number, min: number, max: number) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { apiKey, youtubeUrl, briefUrl, clipCount, blurIntensity, overlayPosX, overlayPosY, overlayZoom } = body;
+  const {
+    apiKey,
+    youtubeUrl,
+    uploadId,
+    uploadTitle,
+    uploadDurationSeconds,
+    briefUrl,
+    clipCount,
+    blurIntensity,
+    overlayPosX,
+    overlayPosY,
+    overlayZoom,
+  } = body;
 
-  if (!apiKey || !youtubeUrl) {
-    return NextResponse.json({ error: 'API key & URL YouTube wajib diisi.' }, { status: 400 });
+  if (!apiKey) {
+    return NextResponse.json({ error: 'API key wajib diisi.' }, { status: 400 });
+  }
+
+  let source;
+  if (uploadId) {
+    if (!/^[0-9a-f-]{36}$/i.test(uploadId)) {
+      return NextResponse.json({ error: 'uploadId tidak valid.' }, { status: 400 });
+    }
+    source = {
+      type: 'upload' as const,
+      uploadId,
+      title: uploadTitle || 'Video Upload',
+      durationSeconds: Number(uploadDurationSeconds) || 0,
+    };
+  } else if (youtubeUrl) {
+    source = { type: 'youtube' as const, youtubeUrl };
+  } else {
+    return NextResponse.json({ error: 'URL YouTube atau file upload wajib diisi.' }, { status: 400 });
   }
   const count = Math.min(8, Math.max(5, Number(clipCount) || 6));
 
