@@ -142,6 +142,7 @@ export default function Wizard() {
   const [uploadInfo, setUploadInfo] = useState<UploadInfo | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadErr, setUploadErr] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoErr, setVideoErr] = useState('');
 
@@ -230,28 +231,45 @@ export default function Wizard() {
     setUploadLoading(true);
     setUploadErr('');
     setUploadInfo(null);
+    setUploadProgress(0);
+
+    const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB — jauh di bawah batas 5 menit/request Railway
+    const uploadId = crypto.randomUUID();
+    const totalChunks = Math.max(1, Math.ceil(uploadFile.size / CHUNK_SIZE));
+
     try {
-      const form = new FormData();
-      form.append('video', uploadFile);
-      const res = await fetch('/api/upload', { method: 'POST', body: form });
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, uploadFile.size);
 
-      let data: any = null;
-      let parseErr = '';
-      try {
-        data = await res.json();
-      } catch (e: any) {
-        parseErr = e?.message || 'response bukan JSON';
-      }
+        const form = new FormData();
+        form.append('chunk', uploadFile.slice(start, end));
+        form.append('uploadId', uploadId);
+        form.append('chunkIndex', String(i));
+        form.append('totalChunks', String(totalChunks));
+        form.append('fileName', uploadFile.name);
 
-      if (!data) {
-        setUploadErr(`[DEBUG] Server balas status ${res.status} ${res.statusText}, tapi gagal dibaca (${parseErr}).`);
-      } else if (!res.ok) {
-        setUploadErr(`[DEBUG status ${res.status}] ${data.error || 'Gagal upload video.'}`);
-      } else {
-        setUploadInfo(data);
+        let data: any = null;
+        let lastErr = '';
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const res = await fetch('/api/upload-chunk', { method: 'POST', body: form });
+            data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Upload bagian gagal.');
+            break;
+          } catch (e: any) {
+            lastErr = e.message || String(e);
+            data = null;
+          }
+        }
+
+        if (!data) throw new Error(`Gagal upload bagian ${i + 1}/${totalChunks}: ${lastErr}`);
+
+        setUploadProgress(Math.round(((i + 1) / totalChunks) * 100));
+        if (data.done) setUploadInfo(data);
       }
     } catch (e: any) {
-      setUploadErr(`[DEBUG] fetch gagal total: ${e?.message || e}`);
+      setUploadErr(e.message || 'Gagal upload video.');
     } finally {
       setUploadLoading(false);
     }
@@ -409,7 +427,7 @@ export default function Wizard() {
                 }}
               />
               <button className="btn" onClick={handleUploadVideo} disabled={!uploadFile || uploadLoading}>
-                {uploadLoading ? 'Mengupload & memproses...' : 'Upload Video'}
+                {uploadLoading ? `Mengupload... ${uploadProgress}%` : 'Upload Video'}
               </button>
               {uploadErr && <p className="msg-error">{uploadErr}</p>}
               {uploadInfo && (
